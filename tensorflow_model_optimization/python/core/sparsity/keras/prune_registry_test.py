@@ -190,10 +190,15 @@ class PruneRegistryTest(tf.test.TestCase):
       PruneRegistry.make_prunable(layers.RNN(
           [layers.LSTMCell(10), PruneRegistryTest.MinimalRNNCell(5)]))
 
-  def testRescalingLayer(self):
+  def testSupportsRescalingLayer(self):
     self.assertTrue(PruneRegistry.supports(
         tf.keras.layers.experimental.preprocessing.Rescaling))
 
+  def testSupportsKerasBatchnorms(self):
+    self.assertTrue(PruneRegistry.supports(
+        tf.keras.layers.BatchNormalization()))
+    self.assertTrue(PruneRegistry.supports(
+        tf.compat.v1.keras.layers.BatchNormalization()))
 
 if __name__ == '__main__':
   tf.test.main()

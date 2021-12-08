@@ -100,6 +100,7 @@ class PruneRegistry(object):
         '_output_dense.kernel'],
       layers.experimental.preprocessing.Rescaling.__class__: [],
       TensorFlowOpLayer: [],
+      tf.compat.v1.keras.layers.BatchNormalization: [],
   }
 
   _RNN_CELLS_WEIGHTS_MAP = {
