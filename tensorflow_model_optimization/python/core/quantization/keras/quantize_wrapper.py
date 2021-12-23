@@ -215,11 +215,28 @@ class QuantizeWrapper(tf.keras.layers.Wrapper):
 
   @property
   def trainable_weights(self):
-    return self.layer.trainable_weights + self._trainable_weights
+    if self.trainable:
+      return self.layer.trainable_weights + self._trainable_weights
+    else:
+      return []
 
   @property
   def non_trainable_weights(self):
-    return self.layer.non_trainable_weights + self._non_trainable_weights
+    if self.trainable:
+      return self.layer.non_trainable_weights + self._non_trainable_weights
+    else:
+      # Return layer weights first, and previously trainable before non-trainable,
+      # to maintain the order in `self.weights`.
+      # TODO: This won't be the correct order if `self.layer` has weights that are
+      # always not trainable. To get the correct order, we would have to use
+      # `layer._trainable_weights` and `layer._non_trainable_weights`, or switch
+      # over to using QuantizeWrapperV2
+      return (
+        self.layer.trainable_weights +
+        self.layer.non_trainable_weights +
+        self._trainable_weights +
+        self._non_trainable_weights
+      )
 
   @property
   def updates(self):
@@ -242,5 +259,18 @@ class QuantizeWrapperV2(QuantizeWrapper):
   @property
   def trainable_weights(self):
     # Change the order to keep the weight order after applying QAT.
-    return self._dedup_weights(
+    if self.trainable:
+      return self._dedup_weights(
         self._trainable_weights + self.layer.trainable_weights)
+    else:
+      return []
+
+  @property
+  def non_trainable_weights(self):
+    if self.trainable:
+      return self.layer.non_trainable_weights + self._non_trainable_weights
+    else:
+      return self._dedup_weights(
+        self._trainable_weights + self.layer.trainable_weights +
+        self.layer.non_trainable_weights + self._non_trainable_weights
+      )
