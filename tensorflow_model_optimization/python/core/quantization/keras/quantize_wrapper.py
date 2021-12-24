@@ -218,7 +218,8 @@ class QuantizeWrapper(tf.keras.layers.Wrapper):
     if self.trainable:
       return self.layer.trainable_weights + self._trainable_weights
     else:
-      return []
+      # `self.layer.trainable_weights` should always be [], but return just in case.
+      return self.layer.trainable_weights
 
   @property
   def non_trainable_weights(self):
@@ -226,13 +227,11 @@ class QuantizeWrapper(tf.keras.layers.Wrapper):
       return self.layer.non_trainable_weights + self._non_trainable_weights
     else:
       # Return layer weights first, and previously trainable before non-trainable,
-      # to maintain the order in `self.weights`.
-      # TODO: This won't be the correct order if `self.layer` has weights that are
-      # always not trainable. To get the correct order, we would have to use
-      # `layer._trainable_weights` and `layer._non_trainable_weights`, or switch
-      # over to using QuantizeWrapperV2
+      # to maintain the order in `self.weights` as best possible. This will NOT maintain
+      # order if `self.layer` has weights that are always not trainable, but it's the
+      # best we can do without using `layer._trainable_weights` (which seems fragile).
+      # This is fixed in QuantizeWrapperV2, where the order is always preserved.
       return (
-        self.layer.trainable_weights +
         self.layer.non_trainable_weights +
         self._trainable_weights +
         self._non_trainable_weights
@@ -263,7 +262,8 @@ class QuantizeWrapperV2(QuantizeWrapper):
       return self._dedup_weights(
         self._trainable_weights + self.layer.trainable_weights)
     else:
-      return []
+      # `self.layer.trainable_weights` should always be [], but return just in case.
+      return self.layer.trainable_weights
 
   @property
   def non_trainable_weights(self):
@@ -271,6 +271,6 @@ class QuantizeWrapperV2(QuantizeWrapper):
       return self.layer.non_trainable_weights + self._non_trainable_weights
     else:
       return self._dedup_weights(
-        self._trainable_weights + self.layer.trainable_weights +
+        self._trainable_weights +
         self.layer.non_trainable_weights + self._non_trainable_weights
       )
