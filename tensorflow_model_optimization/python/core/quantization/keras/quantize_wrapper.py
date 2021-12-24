@@ -215,11 +215,27 @@ class QuantizeWrapper(tf.keras.layers.Wrapper):
 
   @property
   def trainable_weights(self):
-    return self.layer.trainable_weights + self._trainable_weights
+    if self.trainable:
+      return self.layer.trainable_weights + self._trainable_weights
+    else:
+      # `self.layer.trainable_weights` should always be [], but return just in case.
+      return self.layer.trainable_weights
 
   @property
   def non_trainable_weights(self):
-    return self.layer.non_trainable_weights + self._non_trainable_weights
+    if self.trainable:
+      return self.layer.non_trainable_weights + self._non_trainable_weights
+    else:
+      # Return layer weights first, and previously trainable before non-trainable,
+      # to maintain the order in `self.weights` as best possible. This will NOT maintain
+      # order if `self.layer` has weights that are always not trainable, but it's the
+      # best we can do without using `layer._trainable_weights` (which seems fragile).
+      # This is fixed in QuantizeWrapperV2, where the order is always preserved.
+      return (
+        self.layer.non_trainable_weights +
+        self._trainable_weights +
+        self._non_trainable_weights
+      )
 
   @property
   def updates(self):
@@ -242,5 +258,19 @@ class QuantizeWrapperV2(QuantizeWrapper):
   @property
   def trainable_weights(self):
     # Change the order to keep the weight order after applying QAT.
-    return self._dedup_weights(
+    if self.trainable:
+      return self._dedup_weights(
         self._trainable_weights + self.layer.trainable_weights)
+    else:
+      # `self.layer.trainable_weights` should always be [], but return just in case.
+      return self.layer.trainable_weights
+
+  @property
+  def non_trainable_weights(self):
+    if self.trainable:
+      return self.layer.non_trainable_weights + self._non_trainable_weights
+    else:
+      return self._dedup_weights(
+        self._trainable_weights +
+        self.layer.non_trainable_weights + self._non_trainable_weights
+      )
