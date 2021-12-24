@@ -29,6 +29,7 @@ from tensorflow_model_optimization.python.core.quantization.keras.default_8bit i
 
 QuantizeAwareActivation = quantize_aware_activation.QuantizeAwareActivation
 QuantizeWrapper = quantize_wrapper.QuantizeWrapper
+QuantizeWrapperV2 = quantize_wrapper.QuantizeWrapperV2
 QuantizeRegistry = default_8bit_quantize_registry.Default8BitQuantizeRegistry
 
 keras = tf.keras
@@ -190,6 +191,26 @@ class QuantizeWrapperTest(tf.test.TestCase, parameterized.TestCase):
       QuantizeWrapper(
           model,
           quantize_config=self.quantize_registry.get_quantize_config(layer))
+
+  @parameterized.parameters(QuantizeWrapper, QuantizeWrapperV2)
+  def testNotTrainable(self, Wrapper):
+    id_set = lambda obj: set(id(x) for x in obj)
+    input_shape = (2,)
+    layer = keras.layers.Dense(3)
+    qc = self.quantize_registry.get_quantize_config(layer)
+    wrapper = Wrapper(layer=layer, quantize_config=qc, input_shape=input_shape)
+    keras.Sequential([wrapper])  # need to make model to build weights
+
+    weights = list(wrapper.weights)
+    assert len(wrapper.trainable_weights) > 0
+
+    wrapper.trainable = False
+    assert len(wrapper.trainable_weights) == 0
+    assert len(wrapper.non_trainable_weights) == len(weights)
+    assert id_set(wrapper.non_trainable_weights) == id_set(weights)
+    assert id_set(wrapper.weights) == id_set(weights)
+    if Wrapper is QuantizeWrapperV2:
+      assert wrapper.weights == weights, "Weight order should persist in V2"
 
   # TODO(pulkitb): Add test to ensure weights are also preserved.
 
